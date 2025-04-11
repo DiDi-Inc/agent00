@@ -3,78 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financial Research Assistant</title>
-    <!-- Add Font Awesome for icons -->
+    <title>FinNexus | AI Financial Research</title>
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Our stylesheet -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <header>
-        <h1><i class="fa-solid fa-magnifying-glass-chart"></i> Financial Research Assistant</h1>
-    </header>
-
-    <main>
-        <section id="query-section">
-            <form id="research-form">
-                <label for="query-input">Enter your research query:</label>
-                <textarea id="query-input" name="query" rows="4" required placeholder="e.g., Analyze Apple's Q4 earnings report..."></textarea>
-                <button type="submit" id="submit-button">
-                    <i class="fa-solid fa-rocket"></i> Analyze
-                </button>
-            </form>
-        </section>
-
-        <!-- Loading Spinner -->
-        <div id="loading-indicator" class="hidden">
-            <div class="spinner"></div>
-            <p>Processing request...</p>
-        </div>
-
-        <!-- Error Message Area -->
-        <div id="error-message" class="hidden error"></div>
-
-        <section id="results-section" class="hidden">
-            <h2><i class="fa-solid fa-chart-line"></i> Results</h2>
-
-             <div class="result-card trace-card">
-                <h3><i class="fa-solid fa-route"></i> Trace URL</h3>
-                <p><a id="trace-url" href="#" target="_blank">View Execution Trace</a></p>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>FinNexus</span>
+                </h1>
+                <p class="tagline">AI-Driven Financial Research</p>
             </div>
 
-            <div class="result-card summary-card">
-                <h3><i class="fa-solid fa-file-lines"></i> Summary</h3>
-                <p id="summary"></p>
-            </div>
-
-            <div class="result-card report-card">
-                <div class="card-header">
-                    <h3><i class="fa-solid fa-book-open"></i> Report</h3>
-                    <button id="copy-report-button" title="Copy Report to Clipboard">
-                        <i class="fa-solid fa-copy"></i> Copy
+            <div class="query-form-container">
+                <form id="research-form">
+                    <label for="query-input">Research Query</label>
+                    <textarea 
+                        id="query-input" 
+                        name="query" 
+                        rows="5" 
+                        placeholder="e.g., 'Analyze Tesla's recent performance and future outlook' or 'Evaluate market conditions for renewable energy sector'"
+                        required
+                    ></textarea>
+                    <button type="submit" id="submit-button" class="primary-button">
+                        <span class="button-content">
+                            <i class="fa-solid fa-rocket"></i>
+                            <span>Generate Analysis</span>
+                        </span>
                     </button>
-                 </div>
-                 <!-- Changed from <pre> to <div> for Markdown rendering -->
-                <div id="report"></div>
+                </form>
             </div>
 
-            <div class="result-card verification-card">
-                <h3><i class="fa-solid fa-check-double"></i> Verification</h3>
-                <p id="verification"></p>
+            <div class="sidebar-footer">
+                <div class="agent-info">
+                    <div class="agent-status online">
+                        <span class="status-dot"></span>
+                        <span>Agent Online</span>
+                    </div>
+                    <p>Powered by Agent00</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="breadcrumbs">
+                    <span>Dashboard</span>
+                    <i class="fa-solid fa-chevron-right separator"></i>
+                    <span>Financial Research</span>
+                </div>
+                
+                <div class="toolbar-actions">
+                    <button id="fullscreen-toggle" class="icon-button" title="Toggle Fullscreen">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                </div>
             </div>
 
-            <div class="result-card followup-card">
-                <h3><i class="fa-solid fa-lightbulb"></i> Follow-up Questions</h3>
-                <ul id="follow-up"></ul>
+            <!-- Loading Indicator -->
+            <div id="loading-indicator" class="loading-container hidden">
+                <div class="loading-content">
+                    <div class="spinner"></div>
+                    <p>Analyzing financial data...</p>
+                    <div class="loading-stages">
+                        <div class="stage" data-stage="planning">Planning research approach</div>
+                        <div class="stage" data-stage="searching">Gathering market intelligence</div>
+                        <div class="stage" data-stage="analyzing">Processing financial insights</div>
+                        <div class="stage" data-stage="writing">Composing detailed analysis</div>
+                        <div class="stage" data-stage="verifying">Verifying accuracy and sources</div>
+                    </div>
+                </div>
             </div>
-        </section>
-    </main>
 
-    <footer>
-        <p>Powered by Agent00</p>
-    </footer>
+            <!-- Error Message Area -->
+            <div id="error-message" class="error-container hidden">
+                <div class="error-content">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <h3>Analysis Error</h3>
+                    <p id="error-text"></p>
+                    <button id="error-dismiss" class="secondary-button">Dismiss</button>
+                </div>
+            </div>
 
-    <!-- Add marked.js for Markdown rendering -->
+            <!-- Results Grid -->
+            <div id="results-section" class="results-container hidden">
+                <div class="results-header">
+                    <h2>Financial Analysis Results</h2>
+                    <div class="meta-info">
+                        <div class="trace-info">
+                            <i class="fa-solid fa-link"></i>
+                            <a id="trace-url" href="#" target="_blank">View Execution Trace</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <!-- Summary Card -->
+                    <div class="glass-card summary-card collapsible" data-area="summary">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa-solid fa-bullseye"></i>
+                                <span>Executive Summary</span>
+                            </h3>
+                            <div class="card-actions">
+                                <button class="toggle-collapse-button" title="Toggle Section">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <p id="summary"></p>
+                        </div>
+                    </div>
+
+                    <!-- Report Card -->
+                    <div class="glass-card report-card" data-area="report">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa-solid fa-file-lines"></i>
+                                <span>Detailed Report</span>
+                            </h3>
+                            <div class="card-actions">
+                                <button id="copy-report-button" title="Copy Report to Clipboard">
+                                    <i class="fa-solid fa-copy"></i>
+                                    <span>Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div id="report"></div>
+                        </div>
+                    </div>
+
+                    <!-- Verification Card -->
+                    <div class="glass-card verification-card collapsible" data-area="verification">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa-solid fa-shield-check"></i>
+                                <span>Verification</span>
+                            </h3>
+                            <div class="card-actions">
+                                <button class="toggle-collapse-button" title="Toggle Section">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <p id="verification"></p>
+                        </div>
+                    </div>
+
+                    <!-- Follow-up Questions Card -->
+                    <div class="glass-card followup-card collapsible" data-area="followup">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa-solid fa-lightbulb"></i>
+                                <span>Follow-up Questions</span>
+                            </h3>
+                            <div class="card-actions">
+                                <button class="toggle-collapse-button" title="Toggle Section">
+                                    <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <ul id="follow-up"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Our script -->
     <script src="/static/script.js"></script>
 </body>
 </html> 

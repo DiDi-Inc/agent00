@@ -1,127 +1,321 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Core form and display elements
     const form = document.getElementById('research-form');
     const queryInput = document.getElementById('query-input');
     const resultsSection = document.getElementById('results-section');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const errorMessage = document.getElementById('error-message');
+    const loadingContainer = document.getElementById('loading-indicator');
+    const errorContainer = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const errorDismiss = document.getElementById('error-dismiss');
     const submitButton = document.getElementById('submit-button');
     const copyReportButton = document.getElementById('copy-report-button');
+    const fullscreenToggle = document.getElementById('fullscreen-toggle');
 
-    // Result display elements
+    // Results display elements
     const traceUrlElement = document.getElementById('trace-url');
     const summaryElement = document.getElementById('summary');
-    const reportElement = document.getElementById('report'); // This is now a div
+    const reportElement = document.getElementById('report');
     const verificationElement = document.getElementById('verification');
+    const verificationCard = document.querySelector('.verification-card');
     const followUpList = document.getElementById('follow-up');
+    
+    // Loading stages elements
+    const loadingStages = document.querySelectorAll('.loading-stages .stage');
 
-    // Configure marked.js (optional: customize options here if needed)
-    // marked.setOptions({ ... });
+    // Configure marked.js options
+    marked.setOptions({
+        gfm: true, // GitHub Flavored Markdown
+        breaks: true, // Convert line breaks to <br>
+        headerIds: true,
+        smartLists: true
+    });
 
+    // Initialize application state
+    let activeLoadingStage = 0;
+    let loadingInterval = null;
+    
+    // Helper to update loading stages
+    function updateLoadingStage() {
+        // Reset all stages
+        loadingStages.forEach(stage => {
+            stage.classList.remove('active', 'completed');
+        });
+        
+        // Mark completed stages
+        for (let i = 0; i < activeLoadingStage; i++) {
+            loadingStages[i].classList.add('completed');
+        }
+        
+        // Mark active stage if we haven't completed all stages
+        if (activeLoadingStage < loadingStages.length) {
+            loadingStages[activeLoadingStage].classList.add('active');
+            activeLoadingStage = (activeLoadingStage + 1) % loadingStages.length;
+        }
+    }
+
+    // Main form submission handling
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const query = queryInput.value.trim();
         if (!query) return;
 
-        // Reset state
-        resultsSection.classList.add('hidden'); // Hide results until ready
-        errorMessage.classList.add('hidden');
-        errorMessage.textContent = '';
-        loadingIndicator.classList.remove('hidden');
+        // Reset UI state
+        resultsSection.classList.add('hidden');
+        errorContainer.classList.add('hidden');
+        loadingContainer.classList.remove('hidden');
         submitButton.disabled = true;
-        submitButton.innerHTML = '<div class="spinner spinner-button"></div> Processing...'; // Change button content
-
-        // Clear previous results explicitly
+        
+        // Clear previous results & reset card states
         traceUrlElement.href = '#';
-        traceUrlElement.textContent = 'View Execution Trace';
         summaryElement.textContent = '';
-        reportElement.innerHTML = ''; // Clear previous markdown
+        reportElement.innerHTML = '';
         verificationElement.textContent = '';
+        verificationElement.innerHTML = '';
+        verificationCard.classList.remove('has-issues', 'no-issues');
         followUpList.innerHTML = '';
         copyReportButton.classList.remove('copied');
-        copyReportButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+        copyReportButton.innerHTML = '<i class="fa-solid fa-copy"></i><span>Copy</span>';
+
+        // Reset loading animation state and start animation
+        activeLoadingStage = 0;
+        updateLoadingStage();
+        loadingInterval = setInterval(updateLoadingStage, 1500);
+
+        // Ensure collapsible sections are expanded for new results
+        document.querySelectorAll('.glass-card.collapsible').forEach(card => {
+            card.classList.remove('collapsed');
+        });
 
         try {
             const response = await fetch('/research', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: query }),
             });
 
             if (!response.ok) {
-                let errorText = `Error: ${response.status} ${response.statusText}`;
+                let errorMessage = `Error ${response.status}: ${response.statusText}`;
                 try {
                     const errorData = await response.json();
-                    errorText += ` - ${errorData.detail || JSON.stringify(errorData)}`;
-                } catch (e) { /* Ignore if response is not JSON */ }
-                throw new Error(errorText);
+                    errorMessage += `\n${errorData.detail || JSON.stringify(errorData)}`;
+                } catch (e) { /* Ignore parsing errors */ }
+                throw new Error(errorMessage);
             }
 
             const results = await response.json();
 
-            // Populate results
+            // Stop loading animation
+            clearInterval(loadingInterval);
+            
+            // Populate trace URL
             if (results.trace_url) {
                 traceUrlElement.href = results.trace_url;
-                traceUrlElement.parentElement.parentElement.classList.remove('hidden'); // Show trace card
+                traceUrlElement.closest('.trace-info').classList.remove('hidden');
             } else {
-                traceUrlElement.parentElement.parentElement.classList.add('hidden'); // Hide trace card
+                traceUrlElement.closest('.trace-info').classList.add('hidden');
             }
 
-            summaryElement.textContent = results.summary || 'No summary provided.';
+            // Populate summary
+            summaryElement.textContent = results.summary || 'No summary data available.';
 
-            // Use marked.js to render the report markdown
+            // Render markdown report
             if (results.report) {
                 reportElement.innerHTML = marked.parse(results.report);
+                
+                // Apply syntax highlighting to code blocks if Prism.js is available
+                if (typeof Prism !== 'undefined') {
+                    document.querySelectorAll('#report pre code').forEach((block) => {
+                        Prism.highlightElement(block);
+                    });
+                }
             } else {
-                reportElement.innerHTML = '<p><em>No report generated.</em></p>';
+                reportElement.innerHTML = '<p><em>No detailed report available.</em></p>';
             }
 
-            verificationElement.textContent = results.verification_issues || 'No verification issues identified.';
-            // Optionally format verification issues if they contain markdown/newlines
-            verificationElement.innerHTML = verificationElement.textContent.replace(/\n/g, '<br>');
+            // Handle verification display and styling
+            const issues = results.verification_issues;
+            if (issues) {
+                // Format verification issues with spacing and icons
+                const formattedIssues = issues
+                    .split('\n')
+                    .filter(line => line.trim().length > 0)
+                    .map(line => {
+                        // Add warning icon to each issue
+                        if (line.match(/^\d+\./)) {
+                            return `<div class="issue-item"><i class="fa-solid fa-triangle-exclamation"></i> ${line}</div>`;
+                        }
+                        return line;
+                    })
+                    .join('');
+                
+                verificationElement.innerHTML = formattedIssues;
+                verificationCard.classList.add('has-issues');
+                verificationCard.classList.remove('no-issues');
+            } else {
+                verificationElement.innerHTML = '<div class="issue-item success"><i class="fa-solid fa-check-circle"></i> No verification issues identified.</div>';
+                verificationCard.classList.add('no-issues');
+                verificationCard.classList.remove('has-issues');
+            }
 
-            followUpList.innerHTML = ''; // Clear previous items
+            // Populate follow-up questions
+            followUpList.innerHTML = '';
             if (results.follow_up_questions && results.follow_up_questions.length > 0) {
                 results.follow_up_questions.forEach(q => {
                     const li = document.createElement('li');
                     li.textContent = q;
+                    
+                    // Add a "Ask this" button to easily ask follow-up questions
+                    const askButton = document.createElement('button');
+                    askButton.className = 'ask-button';
+                    askButton.innerHTML = '<i class="fa-solid fa-reply"></i>';
+                    askButton.title = 'Ask this question';
+                    askButton.addEventListener('click', () => {
+                        queryInput.value = q;
+                        queryInput.focus();
+                        // Scroll to the query form
+                        document.querySelector('.query-form-container').scrollIntoView({ behavior: 'smooth' });
+                    });
+                    
+                    li.appendChild(askButton);
                     followUpList.appendChild(li);
                 });
             } else {
-                 const li = document.createElement('li');
-                 li.textContent = 'No follow-up questions suggested.';
-                 followUpList.appendChild(li);
+                const li = document.createElement('li');
+                li.textContent = 'No follow-up questions suggested.';
+                followUpList.appendChild(li);
             }
 
-            resultsSection.classList.remove('hidden'); // Show results section now
+            // Show results
+            loadingContainer.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
 
         } catch (error) {
+            // Handle error state
+            clearInterval(loadingInterval);
             console.error('Research request failed:', error);
-            errorMessage.textContent = `Failed to get results: ${error.message}`;
-            errorMessage.classList.remove('hidden');
+            errorText.textContent = error.message;
+            loadingContainer.classList.add('hidden');
+            errorContainer.classList.remove('hidden');
         } finally {
-            loadingIndicator.classList.add('hidden');
             submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="fa-solid fa-rocket"></i> Analyze'; // Restore button text
         }
     });
 
-    // Copy Report Button Functionality
+    // Error message dismissal
+    if (errorDismiss) {
+        errorDismiss.addEventListener('click', () => {
+            errorContainer.classList.add('hidden');
+        });
+    }
+
+    // Copy Report functionality
     copyReportButton.addEventListener('click', () => {
-        const reportText = reportElement.innerText; // Get text content of the rendered markdown
+        // Extract text content from the rendered markdown, preserving structure
+        const reportText = extractFormattedText(reportElement);
+        
         navigator.clipboard.writeText(reportText).then(() => {
-            // Success feedback
-            copyReportButton.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            copyReportButton.innerHTML = '<i class="fa-solid fa-check"></i><span>Copied!</span>';
             copyReportButton.classList.add('copied');
+            
             setTimeout(() => {
-                copyReportButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+                copyReportButton.innerHTML = '<i class="fa-solid fa-copy"></i><span>Copy</span>';
                 copyReportButton.classList.remove('copied');
-            }, 2000); // Reset after 2 seconds
+            }, 2000);
         }).catch(err => {
             console.error('Failed to copy report:', err);
-            // Optional: Show error feedback to user
             alert('Failed to copy report to clipboard.');
         });
     });
+
+    // Fullscreen toggle functionality
+    if (fullscreenToggle) {
+        fullscreenToggle.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+                fullscreenToggle.innerHTML = '<i class="fa-solid fa-compress"></i>';
+                fullscreenToggle.title = 'Exit Fullscreen';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    fullscreenToggle.innerHTML = '<i class="fa-solid fa-expand"></i>';
+                    fullscreenToggle.title = 'Toggle Fullscreen';
+                }
+            }
+        });
+    }
+
+    // Collapsible section toggling
+    document.querySelectorAll('.collapsible .card-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            // Don't toggle if a button inside the header was clicked
+            if (e.target.closest('.card-actions')) return;
+            
+            const card = header.closest('.collapsible');
+            card.classList.toggle('collapsed');
+        });
+    });
+
+    // Also allow toggling via the specific toggle button
+    document.querySelectorAll('.toggle-collapse-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the header click handler from firing
+            const card = e.target.closest('.collapsible');
+            if (card) {
+                card.classList.toggle('collapsed');
+            }
+        });
+    });
+
+    // Helper function to extract text content with formatting
+    function extractFormattedText(element) {
+        let text = '';
+        
+        // Process all child nodes
+        element.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                text += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tagName = node.tagName.toLowerCase();
+                
+                // Handle different element types
+                switch (tagName) {
+                    case 'h1':
+                    case 'h2':
+                    case 'h3':
+                    case 'h4':
+                    case 'h5':
+                    case 'h6':
+                        text += '\n\n' + node.textContent + '\n';
+                        break;
+                    case 'p':
+                        text += '\n' + node.textContent + '\n';
+                        break;
+                    case 'ul':
+                    case 'ol':
+                        text += '\n';
+                        node.querySelectorAll('li').forEach(li => {
+                            text += '\n• ' + li.textContent;
+                        });
+                        text += '\n';
+                        break;
+                    case 'li':
+                        // Skip individual li processing as we handle them in ul/ol
+                        break;
+                    case 'blockquote':
+                        text += '\n> ' + node.textContent + '\n';
+                        break;
+                    case 'pre':
+                        text += '\n```\n' + node.textContent + '\n```\n';
+                        break;
+                    default:
+                        text += node.textContent;
+                }
+            }
+        });
+        
+        // Clean up multiple consecutive newlines
+        return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
 }); 

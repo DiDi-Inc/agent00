@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 import sys
 import os
 import asyncio
@@ -19,8 +20,28 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Mount static files directory
-app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
+# --- CORS Configuration --- Start
+# Define the origins allowed to access the backend.
+# You might want to restrict this more in production.
+origins = [
+    "http://localhost",
+    "http://localhost:5173", # Default Vite dev server port
+    "http://localhost:8080", # Add port used by npm run dev
+    # Add any other origins your frontend might run on
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # Allows specified origins
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
+# --- CORS Configuration --- End
+
+# NOTE: Static file mounting is likely not needed anymore if using a separate frontend project.
+# Commenting it out for now.
+# app.mount("/static", StaticFiles(directory="webapp/static"), name="static")
 
 # Create the manager instance
 manager = FinancialResearchManager()
@@ -35,28 +56,26 @@ class ResearchResult(BaseModel):
     verification_issues: str | None = None
     trace_url: str | None = None
 
-@app.get("/", response_class=FileResponse)
-async def read_root():
-    # Serve the index.html file
-    return 'webapp/static/index.html'
+# NOTE: Root route serving index.html is likely not needed anymore.
+# Commenting it out for now.
+# @app.get("/", response_class=FileResponse)
+# async def read_root():
+#     # Serve the index.html file
+#     return 'webapp/static/index.html'
 
 @app.post("/research", response_model=ResearchResult)
 async def run_research(query: ResearchQuery):
     logger.info(f"Received research query: '{query.query}'")
     try:
-        # Call the actual refactored manager.run method
         result_data = await manager.run(query.query)
         logger.info(f"Research completed for query: '{query.query}'")
-        # Convert the TypedDict result from the manager to the Pydantic model
         return ResearchResult(**result_data)
     except Exception as e:
         logger.error(f"Error processing research query '{query.query}': {e}", exc_info=True)
-        # Raise an HTTPException to return a proper error response to the client
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {e}")
 
 if __name__ == "__main__":
     import uvicorn
-    # Make sure to run from the root directory (agent00) for paths to work
-    print("Starting server... Access at http://localhost:8000")
+    print("Starting FinNexus Backend API Server... Access at http://localhost:8000")
     print("Make sure you are running this script from the 'agent00' directory.")
-    uvicorn.run("webapp.main:app", host="0.0.0.0", port=8000, reload=True) # Use reload for development 
+    uvicorn.run("webapp.main:app", host="0.0.0.0", port=8000, reload=True) 

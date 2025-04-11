@@ -1,0 +1,110 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 22% 14%;
+    --foreground: 210 40% 98%;
+
+    --card: 228 19% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 228 19% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 199 85% 56%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 199 76% 49%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 228 16% 20%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 228 16% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 228 16% 24%;
+    --input: 228 16% 24%;
+    --ring: 199 85% 56%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 228 19% 12%;
+    --sidebar-foreground: 215 20.2% 65.1%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 228 16% 22%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 228 16% 24%;
+    --sidebar-ring: 199 85% 56%;
+  }
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground;
+  background-image: radial-gradient(circle at center, rgba(30, 174, 219, 0.1) 0%, rgba(0, 0, 0, 0) 60%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-attachment: fixed;
+}
+
+@layer components {
+  .finance-gradient {
+    @apply bg-gradient-to-r from-finance-primary to-finance-secondary;
+  }
+  
+  .finance-card {
+    @apply bg-finance-dark border border-gray-800/40 rounded-xl shadow-md backdrop-blur-sm;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(51, 195, 240, 0.1) inset;
+  }
+  
+  .finance-section {
+    @apply animate-fade-in-up;
+  }
+
+  .neo-glow {
+    box-shadow: 0 0 15px rgba(51, 195, 240, 0.5);
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  .neo-glow:hover {
+    box-shadow: 0 0 25px rgba(51, 195, 240, 0.8);
+  }
+
+  .futuristic-border {
+    position: relative;
+    border: 1px solid rgba(51, 195, 240, 0.3);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .futuristic-border::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(51, 195, 240, 0), rgba(51, 195, 240, 0.8), rgba(51, 195, 240, 0));
+    animation: scan 3s linear infinite;
+  }
+
+  @keyframes scan {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
