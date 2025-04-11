@@ -59,6 +59,8 @@ dev = [
     "textual",
     "websockets",
     "graphviz",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
 ]
 
 [tool.uv.workspace]
